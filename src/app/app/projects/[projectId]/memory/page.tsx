@@ -53,7 +53,8 @@ export default function MemoryPage({ params }: { params: Promise<{ projectId: st
     [projectId, store.memories]
   );
   const [query, setQuery] = useState("");
-  const [answer, setAnswer] = useState<{ answer: string; sources: string[] } | null>(null);
+  const [answer, setAnswer] = useState<{ answer: string; sources: string[]; mode?: "live" | "mock" } | null>(null);
+  const [isAsking, setIsAsking] = useState(false);
   const [form, setForm] = useState({
     title: "",
     type: "Decision" as MemoryType,
@@ -74,10 +75,45 @@ export default function MemoryPage({ params }: { params: Promise<{ projectId: st
 
   const currentProject = project;
 
-  function askMemory(event: FormEvent) {
+  async function askMemory(event: FormEvent) {
     event.preventDefault();
-    const result = askProjectMemory(query || "What should we do next?", currentProject, store.memories);
-    setAnswer(result);
+    const question = query || "What should we do next?";
+    const fallback = askProjectMemory(question, currentProject, store.memories);
+    setIsAsking(true);
+
+    try {
+      const response = await fetch("/api/memory/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: question,
+          project: currentProject,
+          memories
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Memory backend route failed.");
+      }
+
+      const payload = (await response.json()) as {
+        answer: string;
+        sources: string[];
+        mode: "live" | "mock";
+        notice?: string;
+      };
+      setAnswer({
+        answer: payload.answer,
+        sources: payload.sources,
+        mode: payload.mode
+      });
+      toast.success(payload.mode === "live" ? "Memory answered with live AI backend." : payload.notice ?? "Memory answered with backend fallback.");
+    } catch (error) {
+      setAnswer({ ...fallback, mode: "mock" });
+      toast.error(error instanceof Error ? error.message : "Memory backend route failed. Used local fallback.");
+    } finally {
+      setIsAsking(false);
+    }
   }
 
   function addMemory() {
@@ -116,8 +152,8 @@ export default function MemoryPage({ params }: { params: Promise<{ projectId: st
               placeholder="Ask anything about this project..."
             />
           </div>
-          <Button type="submit">
-            Ask memory
+          <Button type="submit" disabled={isAsking}>
+            {isAsking ? "Asking..." : "Ask memory"}
             <Search className="h-4 w-4" />
           </Button>
         </form>
@@ -127,6 +163,9 @@ export default function MemoryPage({ params }: { params: Promise<{ projectId: st
             <div className="flex items-center gap-2">
               <MemoryStick className="h-5 w-5 text-gold" />
               <p className="font-semibold text-foreground">Memory answer</p>
+              <Badge variant={answer.mode === "live" ? "success" : "gold"}>
+                {answer.mode === "live" ? "Live AI backend" : "Backend fallback"}
+              </Badge>
             </div>
             <p className="mt-3 text-sm leading-7 text-muted">{answer.answer}</p>
             <div className="mt-4 flex flex-wrap gap-2">

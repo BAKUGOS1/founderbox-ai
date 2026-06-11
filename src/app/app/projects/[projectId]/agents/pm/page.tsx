@@ -21,6 +21,8 @@ export default function PMAgentPage({ params }: { params: Promise<{ projectId: s
   const store = useFounderBoxStore();
   const project = store.projects.find((item) => item.id === projectId);
   const [doc, setDoc] = useState<PMDocument | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationMode, setGenerationMode] = useState<"live" | "mock" | null>(null);
   const [form, setForm] = useState({
     productIdea: project?.description ?? "Founder workspace with project memory and specialized AI agents",
     targetUsers: "SaaS founders, agencies, product builders, and small teams",
@@ -42,20 +44,61 @@ export default function PMAgentPage({ params }: { params: Promise<{ projectId: s
     );
   }
 
-  function generate() {
-    const output = generatePMDocument({ projectId, ...form });
-    setDoc(output);
-    store.addAgentRun({
-      id: uid("run"),
-      projectId,
-      agent: "pm",
-      title: `Generated ${output.title}`,
-      status: "completed",
-      createdAt: new Date().toISOString(),
-      duration: "38 sec",
-      summary: "Generated product summary, scope, schema, roadmap, risks, and success metrics."
-    });
-    toast.success("Product plan generated in demo mode.");
+  async function generate() {
+    setIsGenerating(true);
+    const fallback = generatePMDocument({ projectId, ...form });
+
+    try {
+      const response = await fetch("/api/agents/pm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          ...form,
+          memories: store.memories.filter((item) => item.projectId === projectId)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("PM backend route failed.");
+      }
+
+      const payload = (await response.json()) as {
+        document: PMDocument;
+        mode: "live" | "mock";
+        notice?: string;
+      };
+      const output = payload.document;
+      setDoc(output);
+      setGenerationMode(payload.mode);
+      store.addAgentRun({
+        id: uid("run"),
+        projectId,
+        agent: "pm",
+        title: `Generated ${output.title}`,
+        status: "completed",
+        createdAt: new Date().toISOString(),
+        duration: payload.mode === "live" ? "AI backend" : "Backend fallback",
+        summary: "Generated product summary, scope, schema, roadmap, risks, and success metrics."
+      });
+      toast.success(payload.mode === "live" ? "Product plan generated with live AI backend." : payload.notice ?? "Product plan generated with backend fallback.");
+    } catch (error) {
+      setDoc(fallback);
+      setGenerationMode("mock");
+      store.addAgentRun({
+        id: uid("run"),
+        projectId,
+        agent: "pm",
+        title: `Generated ${fallback.title}`,
+        status: "completed",
+        createdAt: new Date().toISOString(),
+        duration: "Local fallback",
+        summary: "Generated product summary, scope, schema, roadmap, risks, and success metrics."
+      });
+      toast.error(error instanceof Error ? error.message : "PM backend route failed. Used local fallback.");
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   function saveToMemory() {
@@ -153,8 +196,8 @@ export default function PMAgentPage({ params }: { params: Promise<{ projectId: s
               />
               Use Founder Black Box memory
             </label>
-            <Button className="w-full" size="lg" onClick={generate}>
-              Generate Product Plan
+            <Button className="w-full" size="lg" onClick={generate} disabled={isGenerating}>
+              {isGenerating ? "Generating..." : "Generate Product Plan"}
               <Sparkles className="h-4 w-4" />
             </Button>
           </div>
@@ -166,7 +209,9 @@ export default function PMAgentPage({ params }: { params: Promise<{ projectId: s
               <Card className="p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <Badge variant="gold">Generated in demo mode</Badge>
+                    <Badge variant={generationMode === "live" ? "success" : "gold"}>
+                      {generationMode === "live" ? "Live AI backend" : "Backend fallback"}
+                    </Badge>
                     <h2 className="mt-3 text-2xl font-semibold">{doc.title}</h2>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -194,7 +239,7 @@ export default function PMAgentPage({ params }: { params: Promise<{ projectId: s
               icon={FileText}
               title="No PM output yet"
               description="Fill the product inputs and generate a plan. The output can be saved to Founder Black Box, reports, and files."
-              action={<Button onClick={generate}>Generate sample plan <ArrowRight className="h-4 w-4" /></Button>}
+              action={<Button onClick={generate} disabled={isGenerating}>{isGenerating ? "Generating..." : "Generate sample plan"} <ArrowRight className="h-4 w-4" /></Button>}
             />
           )}
         </div>

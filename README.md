@@ -71,26 +71,54 @@ Open `http://localhost:3000`.
 
 ## Demo Mode
 
-This is intentionally frontend-only:
+Phase 1 now includes backend API route boundaries for AI agents, while persistence still uses localStorage:
 
-- No real backend.
 - No real database.
 - No real OAuth.
-- No real AI API calls.
+- Real AI calls are available when `OPENAI_API_KEY` is configured on the server.
 - No real GitHub, Gmail, Calendar, Drive, Notion, or Slack integration.
 - No real browser automation.
 - No sensitive credentials are stored.
 
 Data is seeded from `src/lib/mock-data.ts` and persisted in browser localStorage through `src/lib/mock-store.ts`.
 
+## Backend AI Integration
+
+Create `.env.local` from `.env.example`:
+
+```bash
+cp .env.example .env.local
+```
+
+Add server-side keys:
+
+```env
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+Never put AI keys in `NEXT_PUBLIC_*` variables. Browser-visible environment variables leak to users.
+
+Backend routes:
+
+- `POST /api/agents/pm`
+- `POST /api/agents/qa`
+- `POST /api/agents/migration`
+- `POST /api/memory/ask`
+- `GET /api/integrations/status`
+
+If `OPENAI_API_KEY` is missing or the provider fails, routes return the existing backend fallback output with `mode: "mock"`. If the provider succeeds, routes return `mode: "live"`.
+
+Future user-provided API keys should not be saved in localStorage. They should be submitted through the app to a backend endpoint, encrypted, stored in the database/token vault, and used only by server routes.
+
 ## What Is Mocked
 
 - Agent outputs and run history.
-- Founder Black Box answers and source chips.
+- Founder Black Box answers and source chips when no live AI key is configured.
 - File uploads and generated file records.
 - Reports and report downloads.
 - QA browser steps and screenshots.
-- Migration parsing, mapping, validation, and final files.
+- Migration file parsing and final imports. AI mapping can be live, but real file workers are still backend-roadmap work.
 - Integration connection/configuration flows.
 - Billing and workspace security surfaces.
 

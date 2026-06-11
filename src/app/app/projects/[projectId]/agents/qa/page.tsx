@@ -33,6 +33,7 @@ export default function QAAgentPage({ params }: { params: Promise<{ projectId: s
   const [running, setRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [report, setReport] = useState<QAReport | null>(null);
+  const [generationMode, setGenerationMode] = useState<"live" | "mock" | null>(null);
   const [form, setForm] = useState({
     url: "https://demo.founderbox.ai",
     email: "qa@example.com",
@@ -47,20 +48,65 @@ export default function QAAgentPage({ params }: { params: Promise<{ projectId: s
     if (!running) return;
     if (currentStep >= qaProgressSteps.length) {
       const finishTimer = window.setTimeout(() => {
-        const output = generateQAReport({ projectId, ...form });
-        setReport(output);
-        setRunning(false);
-        store.addAgentRun({
-          id: uid("run"),
-          projectId,
-          agent: "qa",
-          title: `Ran ${output.title}`,
-          status: "completed",
-          createdAt: new Date().toISOString(),
-          duration: "1 min 12 sec",
-          summary: output.summary
-        });
-        toast.success("QA report generated in demo mode.");
+        async function finishRun() {
+          const fallback = generateQAReport({ projectId, ...form });
+          try {
+            const response = await fetch("/api/agents/qa", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                projectId,
+                url: form.url,
+                email: form.email,
+                module: form.module,
+                instructions: form.instructions,
+                sampleData: form.sampleData,
+                reportType: form.reportType
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error("QA backend route failed.");
+            }
+
+            const payload = (await response.json()) as {
+              report: QAReport;
+              mode: "live" | "mock";
+              notice?: string;
+            };
+            setReport(payload.report);
+            setGenerationMode(payload.mode);
+            store.addAgentRun({
+              id: uid("run"),
+              projectId,
+              agent: "qa",
+              title: `Ran ${payload.report.title}`,
+              status: "completed",
+              createdAt: new Date().toISOString(),
+              duration: payload.mode === "live" ? "AI backend" : "Backend fallback",
+              summary: payload.report.summary
+            });
+            toast.success(payload.mode === "live" ? "QA report generated with live AI backend." : payload.notice ?? "QA report generated with backend fallback.");
+          } catch (error) {
+            setReport(fallback);
+            setGenerationMode("mock");
+            store.addAgentRun({
+              id: uid("run"),
+              projectId,
+              agent: "qa",
+              title: `Ran ${fallback.title}`,
+              status: "completed",
+              createdAt: new Date().toISOString(),
+              duration: "Local fallback",
+              summary: fallback.summary
+            });
+            toast.error(error instanceof Error ? error.message : "QA backend route failed. Used local fallback.");
+          } finally {
+            setRunning(false);
+          }
+        }
+
+        void finishRun();
       }, 0);
       return () => window.clearTimeout(finishTimer);
     }
@@ -191,7 +237,9 @@ export default function QAAgentPage({ params }: { params: Promise<{ projectId: s
             <Card className="p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <Badge variant="gold">Demo QA report</Badge>
+                  <Badge variant={generationMode === "live" ? "success" : "gold"}>
+                    {generationMode === "live" ? "Live AI backend" : "Backend fallback"}
+                  </Badge>
                   <h2 className="mt-3 text-2xl font-semibold">{report.title}</h2>
                   <p className="mt-2 text-sm leading-6 text-muted">{report.summary}</p>
                 </div>

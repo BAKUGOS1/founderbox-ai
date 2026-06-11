@@ -55,6 +55,8 @@ export default function MigrationAgentPage({ params }: { params: Promise<{ proje
   const [targetFile, setTargetFile] = useState("tally-customer-import-sample.xlsx");
   const [job, setJob] = useState<MigrationJob | null>(null);
   const [step, setStep] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationMode, setGenerationMode] = useState<"live" | "mock" | null>(null);
 
   if (!project) {
     return (
@@ -67,26 +69,68 @@ export default function MigrationAgentPage({ params }: { params: Promise<{ proje
     );
   }
 
-  function startMapping() {
-    const output = generateMigrationJob({
+  async function startMapping() {
+    setIsGenerating(true);
+    const fallback = generateMigrationJob({
       projectId,
       dataType,
       sourceName: sourceFile,
       targetName: targetFile
     });
-    setJob(output);
-    setStep(2);
-    store.addAgentRun({
-      id: uid("run"),
-      projectId,
-      agent: "migration",
-      title: `Mapped ${dataType}`,
-      status: "completed",
-      createdAt: new Date().toISOString(),
-      duration: "52 sec",
-      summary: `Generated ${output.mappings.length} mappings and ${output.validationErrors.length} validation findings.`
-    });
-    toast.success("AI mapping suggestion generated in demo mode.");
+
+    try {
+      const response = await fetch("/api/agents/migration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          dataType,
+          sourceName: sourceFile,
+          targetName: targetFile
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Migration backend route failed.");
+      }
+
+      const payload = (await response.json()) as {
+        job: MigrationJob;
+        mode: "live" | "mock";
+        notice?: string;
+      };
+      setJob(payload.job);
+      setGenerationMode(payload.mode);
+      setStep(2);
+      store.addAgentRun({
+        id: uid("run"),
+        projectId,
+        agent: "migration",
+        title: `Mapped ${dataType}`,
+        status: "completed",
+        createdAt: new Date().toISOString(),
+        duration: payload.mode === "live" ? "AI backend" : "Backend fallback",
+        summary: `Generated ${payload.job.mappings.length} mappings and ${payload.job.validationErrors.length} validation findings.`
+      });
+      toast.success(payload.mode === "live" ? "Migration mapping generated with live AI backend." : payload.notice ?? "Migration mapping generated with backend fallback.");
+    } catch (error) {
+      setJob(fallback);
+      setGenerationMode("mock");
+      setStep(2);
+      store.addAgentRun({
+        id: uid("run"),
+        projectId,
+        agent: "migration",
+        title: `Mapped ${dataType}`,
+        status: "completed",
+        createdAt: new Date().toISOString(),
+        duration: "Local fallback",
+        summary: `Generated ${fallback.mappings.length} mappings and ${fallback.validationErrors.length} validation findings.`
+      });
+      toast.error(error instanceof Error ? error.message : "Migration backend route failed. Used local fallback.");
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   function updateMapping(mappingId: string, sourceColumn: string) {
@@ -199,9 +243,9 @@ export default function MigrationAgentPage({ params }: { params: Promise<{ proje
                 {dataTypes.map((type) => <option key={type} value={type}>{type}</option>)}
               </Select>
             </Field>
-            <Button className="w-full" size="lg" onClick={startMapping}>
+            <Button className="w-full" size="lg" onClick={startMapping} disabled={isGenerating}>
               <Wand2 className="h-4 w-4" />
-              Generate AI Mapping Suggestion
+              {isGenerating ? "Generating..." : "Generate AI Mapping Suggestion"}
             </Button>
           </div>
         </Card>
@@ -212,7 +256,9 @@ export default function MigrationAgentPage({ params }: { params: Promise<{ proje
               <Card className="p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <Badge variant="gold">Mapping review</Badge>
+                    <Badge variant={generationMode === "live" ? "success" : "gold"}>
+                      {generationMode === "live" ? "Live AI backend" : "Backend fallback"}
+                    </Badge>
                     <h2 className="mt-3 text-2xl font-semibold">{job.title}</h2>
                     <p className="mt-2 text-sm text-muted">Source: {sourceFile} · Target: {targetFile}</p>
                   </div>

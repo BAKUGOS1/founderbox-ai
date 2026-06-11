@@ -4,7 +4,7 @@
 
 FounderBox AI Phase 1 is a complete frontend-only SaaS MVP/demo built with Next.js App Router, TypeScript, Tailwind CSS, Framer Motion, lucide-react, react-hook-form, zod, localStorage persistence, mock services, and safe local XLSX export generation.
 
-The product includes a polished landing page, mock auth, dashboard shell, project CRUD, project overview, Founder Black Box memory, AI PM Agent, AI QA Agent, AI Migration Agent, files, reports, integrations, settings, reusable components, design documentation, and mock backend service boundaries.
+The product includes a polished landing page, mock auth, dashboard shell, project CRUD, project overview, Founder Black Box memory, AI PM Agent, AI QA Agent, AI Migration Agent, files, reports, integrations, settings, reusable components, design documentation, and server API route boundaries for AI integration.
 
 ## Routes Completed
 
@@ -34,9 +34,9 @@ The product includes a polished landing page, mock auth, dashboard shell, projec
 - Project list with create, edit, delete confirmation, search, status filter, and sample projects.
 - Project overview with memory health, active agents, latest outputs, recent decisions/files, and next actions.
 - Founder Black Box ask-memory, memory timeline, add-memory form, source chips, and source cards.
-- AI PM Agent generation, save to memory, markdown export, copy, and QA checklist handoff.
-- AI QA Agent simulated progress, required six issues, XLSX export, save bugs, copy report, and JSON export.
-- AI Migration Agent upload demo, mapping suggestions, editable mapping columns, validation report, final preview, XLSX downloads, and memory save.
+- AI PM Agent backend route integration, live AI/fallback mode, save to memory, markdown export, copy, and QA checklist handoff.
+- AI QA Agent backend route integration, simulated progress, required six issues, XLSX export, save bugs, copy report, and JSON export.
+- AI Migration Agent backend route integration, upload demo, mapping suggestions, editable mapping columns, validation report, final preview, XLSX downloads, and memory save.
 - Files vault with view, mock download, delete, and upload demo.
 - Reports area with type/date/agent filters and report view/download actions.
 - Integrations page with demo/not-connected cards and frontend demo modal.
@@ -45,7 +45,7 @@ The product includes a polished landing page, mock auth, dashboard shell, projec
 ## What Is Mocked
 
 - Backend persistence is replaced with localStorage.
-- AI generation is deterministic mock logic.
+- AI generation uses server routes. If `OPENAI_API_KEY` is configured, routes call the AI provider. If not, routes return deterministic backend fallback output.
 - QA browser automation is simulated.
 - File upload parsing uses polished sample/demo flows.
 - External integrations are demo/not connected.
@@ -56,7 +56,7 @@ The product includes a polished landing page, mock auth, dashboard shell, projec
 - Real backend API.
 - Real database.
 - Real auth/session management.
-- Real AI API calls.
+- Database-backed credential vault for user-provided API keys.
 - Real OAuth integrations.
 - Real browser automation.
 - Real cloud file storage.
@@ -67,6 +67,13 @@ The product includes a polished landing page, mock auth, dashboard shell, projec
 ```bash
 npm install
 npm run dev
+```
+
+For live AI backend calls, create `.env.local`:
+
+```env
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
 ```
 
 Open `http://localhost:3000`.
@@ -81,10 +88,11 @@ Open `http://localhost:3000`.
 - HTTP route check: all required routes returned 200 and no app-error marker.
 - Browser route pass: all required routes rendered expected headings with no console errors.
 - Browser workflow pass: auth validation, login routing, PM generation, QA report generation, migration mapping/validation, and integrations modal passed. Auth validation was retested after changing the login form to start empty.
+- Backend AI route smoke test: PM, QA, Migration, Memory Ask, and Integrations Status returned 200 with safe `mode: "mock"` fallback when no `OPENAI_API_KEY` was configured.
 
 ## Build/Lint/Typecheck Status
 
-All required gates passed after the dynamic route fixes. After a final auth-default tweak and docs update, macOS denied new shell/Node/Git processes access to the project directory, so the final post-docs rerun could not be executed from the shell. Browser verification for the auth tweak passed.
+All required gates pass after backend API route integration.
 
 ## GitHub Push Status
 
