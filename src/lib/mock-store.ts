@@ -17,10 +17,7 @@ import type {
   Workspace
 } from "@/types";
 import { initialState } from "@/lib/mock-data";
-import { getStorageItem, removeStorageItem, setStorageItem } from "@/lib/storage";
 import { slugify, uid } from "@/lib/utils";
-
-const STORAGE_KEY = "founderbox-ai-state-v1";
 
 type ProjectInput = {
   name: string;
@@ -31,29 +28,68 @@ type ProjectInput = {
 
 type MemoryInput = Omit<MemoryItem, "id" | "createdAt"> & { createdAt?: string };
 
-function persist(next: FounderBoxState) {
-  setStorageItem(STORAGE_KEY, next);
-  return next;
+async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...init?.headers
+    }
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || `Request failed: ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function send(path: string, body: unknown, method = "POST") {
+  void apiRequest(path, {
+    method,
+    body: JSON.stringify(body)
+  }).catch((error) => {
+    console.error(error);
+  });
 }
 
 export function useFounderBoxStore() {
   const [state, setState] = useState<FounderBoxState>(initialState);
   const [isReady, setIsReady] = useState(false);
+  const [backendMode, setBackendMode] = useState<"database" | "demo">("demo");
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setState(getStorageItem<FounderBoxState>(STORAGE_KEY, initialState));
-      setIsReady(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
+    let cancelled = false;
+
+    apiRequest<{ state: FounderBoxState; mode: "database" | "demo" }>("/api/state")
+      .then((payload) => {
+        if (cancelled) return;
+        setState(payload.state);
+        setBackendMode(payload.mode);
+      })
+      .catch((error) => {
+        console.error(error);
+        if (!cancelled) {
+          setState(initialState);
+          setBackendMode("demo");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function updateState(updater: (current: FounderBoxState) => FounderBoxState) {
-    setState((current) => persist(updater(current)));
+    setState(updater);
   }
 
   function createProject(input: ProjectInput) {
-    const baseId = `demo-${slugify(input.name) || "project"}`;
+    const baseId = `project-${slugify(input.name) || "workspace"}`;
     const id = state.projects.some((project) => project.id === baseId)
       ? `${baseId}-${state.projects.length + 1}`
       : baseId;
@@ -69,6 +105,7 @@ export function useFounderBoxStore() {
       agentRunCount: 0,
       memoryHealth: 52
     };
+
     updateState((current) => ({
       ...current,
       projects: [project, ...current.projects],
@@ -77,6 +114,7 @@ export function useFounderBoxStore() {
         defaultProjectId: current.workspace.defaultProjectId || project.id
       }
     }));
+    send("/api/projects", project);
     return project;
   }
 
@@ -89,6 +127,7 @@ export function useFounderBoxStore() {
           : project
       )
     }));
+    send(`/api/projects/${projectId}`, updates, "PATCH");
   }
 
   function deleteProject(projectId: string) {
@@ -100,8 +139,10 @@ export function useFounderBoxStore() {
       qaReports: current.qaReports.filter((item) => item.projectId !== projectId),
       migrationJobs: current.migrationJobs.filter((item) => item.projectId !== projectId),
       files: current.files.filter((item) => item.projectId !== projectId),
-      reports: current.reports.filter((item) => item.projectId !== projectId)
+      reports: current.reports.filter((item) => item.projectId !== projectId),
+      agentRuns: current.agentRuns.filter((item) => item.projectId !== projectId)
     }));
+    void fetch(`/api/projects/${projectId}`, { method: "DELETE" }).catch(console.error);
   }
 
   function touchProject(projectId: string, incrementAgentRuns = false) {
@@ -136,35 +177,40 @@ export function useFounderBoxStore() {
           : project
       )
     }));
+    send("/api/memory", memory);
     return memory;
   }
 
   function addPMDocument(doc: PMDocument) {
     updateState((current) => ({
       ...current,
-      pmDocuments: [doc, ...current.pmDocuments]
+      pmDocuments: [doc, ...current.pmDocuments.filter((item) => item.id !== doc.id)]
     }));
+    send("/api/artifacts", { kind: "pmDocument", artifact: doc });
   }
 
   function addQAReport(report: QAReport) {
     updateState((current) => ({
       ...current,
-      qaReports: [report, ...current.qaReports]
+      qaReports: [report, ...current.qaReports.filter((item) => item.id !== report.id)]
     }));
+    send("/api/artifacts", { kind: "qaReport", artifact: report });
   }
 
   function addMigrationJob(job: MigrationJob) {
     updateState((current) => ({
       ...current,
-      migrationJobs: [job, ...current.migrationJobs]
+      migrationJobs: [job, ...current.migrationJobs.filter((item) => item.id !== job.id)]
     }));
+    send("/api/artifacts", { kind: "migrationJob", artifact: job });
   }
 
   function addFile(file: FileItem) {
     updateState((current) => ({
       ...current,
-      files: [file, ...current.files]
+      files: [file, ...current.files.filter((item) => item.id !== file.id)]
     }));
+    send("/api/files", file);
   }
 
   function deleteFile(fileId: string) {
@@ -172,19 +218,21 @@ export function useFounderBoxStore() {
       ...current,
       files: current.files.filter((file) => file.id !== fileId)
     }));
+    void fetch(`/api/files/${fileId}`, { method: "DELETE" }).catch(console.error);
   }
 
   function addReport(report: ReportItem) {
     updateState((current) => ({
       ...current,
-      reports: [report, ...current.reports]
+      reports: [report, ...current.reports.filter((item) => item.id !== report.id)]
     }));
+    send("/api/reports", report);
   }
 
   function addAgentRun(run: AgentRun) {
     updateState((current) => ({
       ...current,
-      agentRuns: [run, ...current.agentRuns],
+      agentRuns: [run, ...current.agentRuns.filter((item) => item.id !== run.id)],
       projects: current.projects.map((project) =>
         project.id === run.projectId
           ? {
@@ -202,6 +250,7 @@ export function useFounderBoxStore() {
       ...current,
       user: { ...current.user, ...user }
     }));
+    send("/api/settings", { user }, "PATCH");
   }
 
   function updateWorkspace(workspace: Partial<Workspace>) {
@@ -209,11 +258,19 @@ export function useFounderBoxStore() {
       ...current,
       workspace: { ...current.workspace, ...workspace }
     }));
+    send("/api/settings", { workspace }, "PATCH");
   }
 
   function resetDemo() {
-    removeStorageItem(STORAGE_KEY);
-    setState(initialState);
+    apiRequest<{ state: FounderBoxState; mode: "database" | "demo" }>("/api/state")
+      .then((payload) => {
+        setState(payload.state);
+        setBackendMode(payload.mode);
+      })
+      .catch(() => {
+        setState(initialState);
+        setBackendMode("demo");
+      });
   }
 
   const stats = useMemo(() => {
@@ -231,6 +288,7 @@ export function useFounderBoxStore() {
   return {
     ...state,
     isReady,
+    backendMode,
     stats,
     createProject,
     updateProject,

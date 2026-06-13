@@ -17,7 +17,7 @@ import { generateMigrationJob } from "@/lib/mock-agents";
 import { useFounderBoxStore } from "@/lib/mock-store";
 import { sampleSourceColumns } from "@/lib/validation";
 import { uid } from "@/lib/utils";
-import type { MigrationJob, MigrationMapping, ValidationError } from "@/types";
+import type { AgentRun, MigrationJob, MigrationMapping, ValidationError } from "@/types";
 
 const flowSteps = [
   "Upload Files",
@@ -96,22 +96,14 @@ export default function MigrationAgentPage({ params }: { params: Promise<{ proje
 
       const payload = (await response.json()) as {
         job: MigrationJob;
+        agentRun: AgentRun;
         mode: "live" | "mock";
         notice?: string;
       };
       setJob(payload.job);
       setGenerationMode(payload.mode);
       setStep(2);
-      store.addAgentRun({
-        id: uid("run"),
-        projectId,
-        agent: "migration",
-        title: `Mapped ${dataType}`,
-        status: "completed",
-        createdAt: new Date().toISOString(),
-        duration: payload.mode === "live" ? "AI backend" : "Backend fallback",
-        summary: `Generated ${payload.job.mappings.length} mappings and ${payload.job.validationErrors.length} validation findings.`
-      });
+      store.addAgentRun(payload.agentRun);
       toast.success(payload.mode === "live" ? "Migration mapping generated with live AI backend." : payload.notice ?? "Migration mapping generated with backend fallback.");
     } catch (error) {
       setJob(fallback);
@@ -156,7 +148,7 @@ export default function MigrationAgentPage({ params }: { params: Promise<{ proje
       projectId,
       title: job.title,
       type: "Migration",
-      content: `Migration Agent mapped ${job.mappings.length} fields for ${job.dataType}, found ${job.validationErrors.length} validation issues, and prepared ${job.previewRows.length} preview rows. Final export remains user-approved in demo mode.`,
+      content: `Migration Agent mapped ${job.mappings.length} fields for ${job.dataType}, found ${job.validationErrors.length} validation issues, and prepared ${job.previewRows.length} preview rows. Final export remains user-approved.`,
       tags: ["migration", "mapping", "validation"],
       source: "Migration Job #2"
     });
@@ -213,7 +205,7 @@ export default function MigrationAgentPage({ params }: { params: Promise<{ proje
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
           <p className="text-sm leading-6 text-muted">
             AI suggests the mapping, but final migration uses validation rules and user-approved mappings.
-            This Phase 1 demo processes sample data locally and does not upload files to a backend.
+            File metadata is saved through backend APIs. Full binary upload uses S3-compatible storage when configured.
           </p>
         </div>
       </Card>

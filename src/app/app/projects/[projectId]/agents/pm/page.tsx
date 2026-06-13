@@ -14,7 +14,7 @@ import { copyText, downloadText, pmDocumentToMarkdown } from "@/lib/export";
 import { generatePMDocument } from "@/lib/mock-agents";
 import { useFounderBoxStore } from "@/lib/mock-store";
 import { uid } from "@/lib/utils";
-import type { PMDocument } from "@/types";
+import type { AgentRun, PMDocument } from "@/types";
 
 export default function PMAgentPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = use(params);
@@ -65,22 +65,14 @@ export default function PMAgentPage({ params }: { params: Promise<{ projectId: s
 
       const payload = (await response.json()) as {
         document: PMDocument;
+        agentRun: AgentRun;
         mode: "live" | "mock";
         notice?: string;
       };
       const output = payload.document;
       setDoc(output);
       setGenerationMode(payload.mode);
-      store.addAgentRun({
-        id: uid("run"),
-        projectId,
-        agent: "pm",
-        title: `Generated ${output.title}`,
-        status: "completed",
-        createdAt: new Date().toISOString(),
-        duration: payload.mode === "live" ? "AI backend" : "Backend fallback",
-        summary: "Generated product summary, scope, schema, roadmap, risks, and success metrics."
-      });
+      store.addAgentRun(payload.agentRun);
       toast.success(payload.mode === "live" ? "Product plan generated with live AI backend." : payload.notice ?? "Product plan generated with backend fallback.");
     } catch (error) {
       setDoc(fallback);

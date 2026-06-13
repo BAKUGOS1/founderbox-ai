@@ -27,7 +27,7 @@ export default function SettingsPage() {
   function saveSettings() {
     store.updateUser({ name: profile.name, email: profile.email, avatarInitials: profile.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "FB" });
     store.updateWorkspace({ name: profile.workspace, defaultProjectId: profile.defaultProjectId });
-    toast.success("Settings saved locally.");
+    toast.success("Settings saved.");
   }
 
   return (
@@ -35,7 +35,7 @@ export default function SettingsPage() {
       <PageHeader
         eyebrow="Settings"
         title="Workspace settings"
-        description="Configure the local demo workspace, agent rules, appearance preview, and security warnings for the backend phase."
+        description="Configure workspace profile, agent rules, appearance preview, and production security posture."
       >
         <Button onClick={saveSettings}>
           <Save className="h-4 w-4" />
@@ -135,9 +135,9 @@ export default function SettingsPage() {
             <h2 className="text-lg font-semibold">Data and security</h2>
           </div>
           <div className="mt-4 grid gap-3 text-sm text-muted">
-            <p>No real backend connected.</p>
-            <p>Files are stored locally in browser demo mode.</p>
-            <p>Do not upload sensitive data in demo mode.</p>
+            <p>Production data requires `DATABASE_URL`, `NEXTAUTH_SECRET`, and `CREDENTIAL_ENCRYPTION_KEY`.</p>
+            <p>Files require S3-compatible storage credentials.</p>
+            <p>Demo fallback is for local development only.</p>
           </div>
         </Card>
 

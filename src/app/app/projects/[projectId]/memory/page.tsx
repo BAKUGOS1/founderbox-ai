@@ -23,7 +23,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Timeline } from "@/components/ui/timeline";
 import { askProjectMemory } from "@/lib/mock-agents";
 import { useFounderBoxStore } from "@/lib/mock-store";
-import type { MemoryType } from "@/types";
+import type { AgentRun, MemoryType } from "@/types";
 
 const memoryTypes: MemoryType[] = [
   "Decision",
@@ -99,6 +99,7 @@ export default function MemoryPage({ params }: { params: Promise<{ projectId: st
       const payload = (await response.json()) as {
         answer: string;
         sources: string[];
+        agentRun: AgentRun;
         mode: "live" | "mock";
         notice?: string;
       };
@@ -107,6 +108,7 @@ export default function MemoryPage({ params }: { params: Promise<{ projectId: st
         sources: payload.sources,
         mode: payload.mode
       });
+      store.addAgentRun(payload.agentRun);
       toast.success(payload.mode === "live" ? "Memory answered with live AI backend." : payload.notice ?? "Memory answered with backend fallback.");
     } catch (error) {
       setAnswer({ ...fallback, mode: "mock" });

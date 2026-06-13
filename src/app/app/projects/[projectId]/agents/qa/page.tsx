@@ -16,7 +16,7 @@ import { copyText, downloadJson, downloadQAExcel, qaReportToMarkdown } from "@/l
 import { generateQAReport, qaProgressSteps } from "@/lib/mock-agents";
 import { useFounderBoxStore } from "@/lib/mock-store";
 import { uid } from "@/lib/utils";
-import type { QAIssue, QAReport } from "@/types";
+import type { AgentRun, QAIssue, QAReport } from "@/types";
 
 const issueColumns: Column<QAIssue>[] = [
   { header: "Module", accessor: "module" },
@@ -71,21 +71,13 @@ export default function QAAgentPage({ params }: { params: Promise<{ projectId: s
 
             const payload = (await response.json()) as {
               report: QAReport;
+              agentRun: AgentRun;
               mode: "live" | "mock";
               notice?: string;
             };
             setReport(payload.report);
             setGenerationMode(payload.mode);
-            store.addAgentRun({
-              id: uid("run"),
-              projectId,
-              agent: "qa",
-              title: `Ran ${payload.report.title}`,
-              status: "completed",
-              createdAt: new Date().toISOString(),
-              duration: payload.mode === "live" ? "AI backend" : "Backend fallback",
-              summary: payload.report.summary
-            });
+            store.addAgentRun(payload.agentRun);
             toast.success(payload.mode === "live" ? "QA report generated with live AI backend." : payload.notice ?? "QA report generated with backend fallback.");
           } catch (error) {
             setReport(fallback);
@@ -188,7 +180,7 @@ export default function QAAgentPage({ params }: { params: Promise<{ projectId: s
               <Field label="Login email">
                 <Input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
               </Field>
-              <Field label="Login password" hint="Not saved in demo mode">
+              <Field label="Login password" hint="Used only for this run">
                 <Input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
               </Field>
             </div>
@@ -258,7 +250,7 @@ export default function QAAgentPage({ params }: { params: Promise<{ projectId: s
             <EmptyState
               icon={Bug}
               title="No QA report yet"
-              description="Run the simulated QA test to generate issue tables, progress history, and exports."
+              description="Run the QA workflow to generate issue tables, progress history, and exports."
             />
           )}
         </div>

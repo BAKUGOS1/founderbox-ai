@@ -31,7 +31,7 @@ export default function DashboardPage() {
       <PageHeader
         eyebrow="Command center"
         title="FounderBox AI dashboard"
-        description="A connected view of project memory, specialized agents, reports, files, and demo-mode integration readiness."
+        description="A connected view of project memory, specialized agents, reports, files, and production integration readiness."
       >
         <Button asChild>
           <Link href="/app/projects">
@@ -42,11 +42,11 @@ export default function DashboardPage() {
       </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <StatCard title="Total Projects" value={store.stats.projects} note="Active demo workspaces" icon={FolderKanban} />
+        <StatCard title="Total Projects" value={store.stats.projects} note="Active workspaces" icon={FolderKanban} />
         <StatCard title="Agent Runs" value={store.stats.agentRuns} note="PM, QA, migration, memory" icon={Bot} />
         <StatCard title="Saved Memories" value={store.stats.memories} note="Decisions and source-backed notes" icon={MemoryStick} />
-        <StatCard title="QA Issues" value={store.stats.qaIssues} note="Open demo findings across reports" icon={Bug} />
-        <StatCard title="Migration Jobs" value={store.stats.migrationJobs} note="Validated local workflows" icon={Boxes} />
+        <StatCard title="QA Issues" value={store.stats.qaIssues} note="Open findings across reports" icon={Bug} />
+        <StatCard title="Migration Jobs" value={store.stats.migrationJobs} note="Validated workflows" icon={Boxes} />
         <StatCard title="PM Documents" value={store.stats.pmDocuments} note="Execution-ready planning docs" icon={FileText} />
       </div>
 
@@ -57,7 +57,7 @@ export default function DashboardPage() {
               <h2 className="text-lg font-semibold">Recent activity timeline</h2>
               <p className="mt-1 text-sm text-muted">Memory is the shared layer behind every agent output.</p>
             </div>
-            <Badge variant="gold">Live localStorage</Badge>
+            <Badge variant="gold">{store.backendMode === "database" ? "Database-backed" : "Demo fallback"}</Badge>
           </div>
           <div className="mt-5 space-y-3">
             {recentMemories.map((memory) => (

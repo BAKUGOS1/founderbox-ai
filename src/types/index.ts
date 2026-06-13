@@ -55,8 +55,12 @@ export interface AgentRun {
   title: string;
   status: AgentRunStatus;
   createdAt: string;
+  updatedAt?: string;
   duration: string;
   summary: string;
+  logs?: string[];
+  result?: unknown;
+  error?: string;
 }
 
 export interface MemoryItem {

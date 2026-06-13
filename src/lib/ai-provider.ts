@@ -4,6 +4,8 @@ interface GenerateJsonInput<T> {
   system: string;
   user: string;
   fallback: T;
+  apiKey?: string | null;
+  model?: string;
   temperature?: number;
 }
 
@@ -43,10 +45,12 @@ export async function generateJson<T>({
   system,
   user,
   fallback,
+  apiKey: requestApiKey,
+  model: requestModel,
   temperature = 0.35
 }: GenerateJsonInput<T>): Promise<GenerateJsonResult<T>> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+  const apiKey = requestApiKey || process.env.OPENAI_API_KEY;
+  const model = requestModel || process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
   if (!apiKey) {
     return {

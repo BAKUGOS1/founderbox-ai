@@ -32,7 +32,7 @@ export function FileUploader({
         </div>
         <div>
           <p className="text-sm font-medium text-foreground">{label}</p>
-          <p className="text-xs text-muted">CSV or XLSX, processed locally in demo mode.</p>
+          <p className="text-xs text-muted">CSV or XLSX, registered through the workspace file flow.</p>
         </div>
       </div>
     </Card>

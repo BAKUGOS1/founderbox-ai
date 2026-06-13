@@ -47,7 +47,7 @@ export default function FilesPage({ params }: { params: Promise<{ projectId: str
       createdAt: new Date().toISOString(),
       status: "ready"
     });
-    toast.success("File added to local demo vault.");
+    toast.success("File added to workspace vault.");
   }
 
   return (
@@ -55,10 +55,10 @@ export default function FilesPage({ params }: { params: Promise<{ projectId: str
       <PageHeader
         eyebrow="Files"
         title={`${project.name} file vault`}
-        description="Uploaded and generated files are tracked locally in demo mode. Downloads create mock files that show the intended backend workflow."
+        description="Uploaded and generated files are tracked through the backend API, with secure object storage available when S3 credentials are configured."
       />
 
-      <FileUploader label="Upload local demo file" accept=".xlsx,.csv,.json,.md" onChange={addUpload} />
+      <FileUploader label="Upload workspace file" accept=".xlsx,.csv,.json,.md" onChange={addUpload} />
 
       {files.length ? (
         <div className="grid gap-4 xl:grid-cols-3">
@@ -88,7 +88,7 @@ export default function FilesPage({ params }: { params: Promise<{ projectId: str
                 <Button variant="secondary" size="icon" aria-label="Download mock file" onClick={() => downloadText(file.name, `FounderBox AI demo file\n\nName: ${file.name}\nSource: ${file.sourceAgent}\nStatus: ${file.status}`)}>
                   <Download className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" aria-label="Delete file" onClick={() => { store.deleteFile(file.id); toast.success("File removed from demo vault."); }}>
+                <Button variant="ghost" size="icon" aria-label="Delete file" onClick={() => { store.deleteFile(file.id); toast.success("File removed from vault."); }}>
                   <Trash2 className="h-4 w-4 text-danger" />
                 </Button>
               </div>
@@ -99,7 +99,7 @@ export default function FilesPage({ params }: { params: Promise<{ projectId: str
         <EmptyState
           icon={Plus}
           title="No files yet"
-          description="Run an agent or upload a local demo file to populate this file vault."
+          description="Run an agent or upload a file to populate this file vault."
         />
       )}
 
@@ -107,7 +107,7 @@ export default function FilesPage({ params }: { params: Promise<{ projectId: str
         open={Boolean(selected)}
         onOpenChange={(open) => !open && setSelected(null)}
         title={selected?.name ?? "File preview"}
-        description="This is a local demo preview. Real file rendering and secure storage will be backend phase work."
+        description="Metadata is persisted through the backend; secure binary storage is enabled through S3-compatible credentials."
       >
         {selected ? (
           <div className="rounded-lg border border-border bg-background p-4 text-sm leading-7 text-muted">

@@ -1,0 +1,270 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String            @id @default(cuid())
+  name            String?
+  email           String?           @unique
+  emailVerified   DateTime?
+  image           String?
+  passwordHash    String?
+  avatarInitials  String?
+  accounts        Account[]
+  sessions        Session[]
+  memberships     WorkspaceMember[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Workspace {
+  id               String            @id @default(cuid())
+  name             String
+  plan             String            @default("Free Demo")
+  defaultProjectId String?
+  members          WorkspaceMember[]
+  projects         Project[]
+  credentials      Credential[]
+  files            FileObject[]
+  reports          ReportItem[]
+  agentRuns        AgentRun[]
+  memories         MemoryItem[]
+  pmDocuments      PMDocument[]
+  qaReports        QAReport[]
+  migrationJobs    MigrationJob[]
+  auditEvents      AuditEvent[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        String    @default("owner")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+model Project {
+  id             String         @id @default(cuid())
+  workspaceId    String
+  name           String
+  description    String         @db.Text
+  type           String
+  status         String         @default("active")
+  integrations   Json           @default("[]")
+  agentRunCount  Int            @default(0)
+  memoryHealth   Int            @default(52)
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  memories       MemoryItem[]
+  agentRuns      AgentRun[]
+  pmDocuments    PMDocument[]
+  qaReports      QAReport[]
+  migrationJobs  MigrationJob[]
+  files          FileObject[]
+  reports        ReportItem[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  lastActivityAt DateTime       @default(now())
+
+  @@index([workspaceId, status])
+}
+
+model MemoryItem {
+  id          String    @id @default(cuid())
+  workspaceId String
+  projectId   String
+  title       String
+  type        String
+  content     String    @db.Text
+  tags        Json      @default("[]")
+  source      String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, projectId])
+}
+
+model AgentRun {
+  id          String     @id @default(cuid())
+  workspaceId String
+  projectId   String?
+  agent       String
+  title       String
+  status      String     @default("queued")
+  duration    String?
+  summary     String?    @db.Text
+  input       Json?
+  result      Json?
+  logs        Json       @default("[]")
+  error       String?    @db.Text
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  completedAt DateTime?
+
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, status])
+}
+
+model PMDocument {
+  id          String    @id @default(cuid())
+  workspaceId String
+  projectId   String
+  title       String
+  idea        String    @db.Text
+  sections    Json
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, projectId])
+}
+
+model QAReport {
+  id          String    @id @default(cuid())
+  workspaceId String
+  projectId   String
+  title       String
+  url         String
+  reportType  String
+  summary     String    @db.Text
+  steps       Json
+  issues      Json
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, projectId])
+}
+
+model MigrationJob {
+  id               String    @id @default(cuid())
+  workspaceId       String
+  projectId         String
+  title             String
+  dataType          String
+  status            String
+  mappings          Json
+  validationErrors  Json
+  previewRows       Json
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt         DateTime  @default(now())
+
+  @@index([workspaceId, projectId])
+}
+
+model FileObject {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  projectId     String
+  name          String
+  fileType      String
+  sourceAgent   String
+  status        String    @default("ready")
+  storageBucket String?
+  storageKey    String?
+  mimeType      String?
+  sizeBytes     Int?
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+
+  @@index([workspaceId, projectId])
+}
+
+model ReportItem {
+  id          String    @id @default(cuid())
+  workspaceId String
+  projectId   String
+  title       String
+  type        String
+  agent       String
+  status      String    @default("Ready")
+  summary     String    @db.Text
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, projectId])
+}
+
+model Credential {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  provider        String
+  label           String    @default("default")
+  encryptedSecret String    @db.Text
+  iv              String
+  tag             String
+  keyVersion      String    @default("v1")
+  metadata        Json?
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  configuredAt    DateTime  @default(now())
+
+  @@unique([workspaceId, provider, label])
+  @@index([workspaceId, provider])
+}
+
+model AuditEvent {
+  id          String    @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json?
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, createdAt])
+}

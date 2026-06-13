@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
@@ -40,7 +42,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           </div>
           <div>
             <p className="text-sm font-semibold">FounderBox AI</p>
-            <p className="text-xs text-muted">Frontend demo mode</p>
+            <p className="text-xs text-muted">Secure workspace access</p>
           </div>
         </Link>
 
@@ -50,15 +52,43 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted">
             {mode === "login"
-              ? "Use demo@founderbox.ai with password founderbox, or enter any valid email and password."
-              : "Signup is simulated and routes directly into the FounderBox demo workspace."}
+              ? "Login with your workspace credentials. Local demo mode accepts any valid email and password."
+              : "Create a workspace account. In production this creates your user, workspace, and session."}
           </p>
         </div>
 
         <form
           className="mt-6 space-y-4"
-          onSubmit={handleSubmit(async () => {
-            router.push("/app/dashboard");
+          onSubmit={handleSubmit(async (values) => {
+            try {
+              if (mode === "signup") {
+                const response = await fetch("/api/auth/signup", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(values)
+                });
+
+                if (!response.ok && response.status !== 409) {
+                  const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+                  throw new Error(payload?.error || "Signup failed.");
+                }
+              }
+
+              const result = await signIn("credentials", {
+                email: values.email,
+                password: values.password,
+                redirect: false
+              });
+
+              if (result?.error) {
+                throw new Error("Invalid email or password.");
+              }
+
+              router.push("/app/dashboard");
+              router.refresh();
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Authentication failed.");
+            }
           })}
         >
           <Field label="Email" error={errors.email?.message}>

@@ -72,7 +72,7 @@ export default function ProjectOverviewPage({ params }: { params: Promise<{ proj
             <Link href={`/app/projects/${project.id}/agents/qa`} className="rounded-lg border border-border bg-surface2/50 p-4 hover:border-gold/40">
               <Bug className="h-5 w-5 text-gold" />
               <p className="mt-3 text-sm font-semibold">Latest QA report</p>
-              <p className="mt-2 text-xs leading-5 text-muted">{latestQA?.title ?? "Run a simulated QA report."}</p>
+              <p className="mt-2 text-xs leading-5 text-muted">{latestQA?.title ?? "Run a QA report."}</p>
             </Link>
             <Link href={`/app/projects/${project.id}/agents/migration`} className="rounded-lg border border-border bg-surface2/50 p-4 hover:border-gold/40">
               <Boxes className="h-5 w-5 text-gold" />

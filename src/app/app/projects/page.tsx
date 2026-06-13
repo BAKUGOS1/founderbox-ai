@@ -86,7 +86,7 @@ export default function ProjectsPage() {
       <PageHeader
         eyebrow="Projects"
         title="Product workspaces"
-        description="Create, edit, search, and manage founder projects. Every demo project has local memory, files, reports, and agent run history."
+        description="Create, edit, search, and manage founder projects. Database-backed workspaces keep memory, files, reports, and agent run history durable."
       >
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />
@@ -172,7 +172,7 @@ export default function ProjectsPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title={editing ? "Edit project" : "Create project"}
-        description="Projects are stored in browser localStorage for this Phase 1 demo."
+        description="Projects save through the backend API and use demo fallback when no database is configured."
       >
         <div className="space-y-4">
           <Field label="Name">
@@ -204,7 +204,7 @@ export default function ProjectsPage() {
         open={Boolean(deleting)}
         onOpenChange={(open) => !open && setDeleting(null)}
         title="Delete project?"
-        description="This removes the project and its local demo memory, reports, files, and agent outputs from this browser."
+        description="This removes the project and its memory, reports, files, and agent outputs from the active workspace."
       >
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setDeleting(null)}>Cancel</Button>
@@ -213,7 +213,7 @@ export default function ProjectsPage() {
             onClick={() => {
               if (deleting) {
                 store.deleteProject(deleting.id);
-                toast.success("Project deleted from local demo storage.");
+                toast.success("Project deleted.");
                 setDeleting(null);
               }
             }}

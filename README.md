@@ -2,27 +2,27 @@
 
 Plan. Test. Migrate. Remember.
 
-FounderBox AI is a frontend-only Phase 1 MVP/demo for a connected AI workspace for SaaS founders, product builders, agencies, QA teams, and small business software teams. It feels like a real SaaS operating system with shared project memory and specialized agents, while staying honest that backend, database, OAuth, AI APIs, and browser automation are not connected yet.
+FounderBox AI is a production-shaped AI workspace for SaaS founders, product builders, agencies, QA teams, and small business software teams. It combines shared project memory, specialized AI agents, durable backend APIs, encrypted workspace credentials, and database-backed project state.
 
 ## Core Agents
 
 - Founder Black Box: shared project memory, source-backed mock answers, manual memory capture, and source cards.
 - AI PM Agent: product plan generation with PRD sections, roadmap, schema notes, sprint tasks, risks, and metrics.
-- AI QA Agent: simulated autonomous QA run with progress steps, issue table, memory save, JSON/copy, and XLSX export.
+- AI QA Agent: QA workflow with progress steps, issue table, memory save, JSON/copy, and XLSX export.
 - AI Migration Agent: file upload demo, mapping suggestions, mapping review, validation report, final preview, and XLSX export.
 
 ## Features
 
 - Premium dark SaaS landing page.
-- Mock login and signup with validation.
+- Auth.js login and signup with local demo fallback when no database is configured.
 - Dashboard shell with sidebar, topbar, project switcher, search, user menu, and mobile menu.
-- Project list with create, edit, delete, search, filter, and localStorage persistence.
+- Project list with create, edit, delete, search, filter, and backend persistence.
 - Project overview with memory health, active agents, latest outputs, decisions, files, and suggested actions.
 - Founder Black Box memory timeline, ask-memory flow, add-memory form, and demo source references.
-- PM, QA, and Migration agent workflows with realistic local outputs.
+- PM, QA, and Migration agent workflows with server-side AI calls, backend fallback, and persisted agent runs.
 - Files vault with generated files, upload demo, view/download/delete actions.
 - Reports area with filters, view dialog, and mock downloads.
-- Integration cards with demo/not-connected status and modal messaging.
+- Integration cards with backend readiness status and encrypted OpenAI workspace-key storage.
 - Settings for profile, workspace, appearance, agent rules, data/security warnings, and billing preview.
 
 ## Tech Stack
@@ -38,6 +38,9 @@ FounderBox AI is a frontend-only Phase 1 MVP/demo for a connected AI workspace f
 - sonner
 - date-fns
 - fflate for safe XLSX ZIP generation
+- Prisma + Postgres
+- Auth.js / NextAuth
+- S3-compatible storage helper
 
 ## Routes
 
@@ -69,20 +72,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Demo Mode
-
-Phase 1 now includes backend API route boundaries for AI agents, while persistence still uses localStorage:
-
-- No real database.
-- No real OAuth.
-- Real AI calls are available when `OPENAI_API_KEY` is configured on the server.
-- No real GitHub, Gmail, Calendar, Drive, Notion, or Slack integration.
-- No real browser automation.
-- No sensitive credentials are stored.
-
-Data is seeded from `src/lib/mock-data.ts` and persisted in browser localStorage through `src/lib/mock-store.ts`.
-
-## Backend AI Integration
+## Production Backend
 
 Create `.env.local` from `.env.example`:
 
@@ -90,45 +80,74 @@ Create `.env.local` from `.env.example`:
 cp .env.example .env.local
 ```
 
-Add server-side keys:
+Minimum production variables:
 
 ```env
-OPENAI_API_KEY=your_key_here
+DATABASE_URL=postgresql://...
+NEXTAUTH_SECRET=change_me
+NEXTAUTH_URL=http://localhost:3000
+CREDENTIAL_ENCRYPTION_KEY=change_me
+OPENAI_API_KEY=optional_platform_key
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
-Never put AI keys in `NEXT_PUBLIC_*` variables. Browser-visible environment variables leak to users.
+Database setup:
+
+```bash
+npm run db:generate
+npm run db:push
+```
+
+S3-compatible file storage is enabled when these are configured:
+
+```env
+S3_BUCKET=
+S3_REGION=
+S3_ENDPOINT=
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+```
+
+If `DATABASE_URL` is missing, the app uses seeded demo fallback data so local development still works. Production should configure Postgres, Auth.js secret, and credential encryption.
+
+## API Routes
 
 Backend routes:
 
+- `GET /api/state`
+- `GET/POST /api/projects`
+- `PATCH/DELETE /api/projects/[projectId]`
+- `GET/POST /api/memory`
 - `POST /api/agents/pm`
 - `POST /api/agents/qa`
 - `POST /api/agents/migration`
 - `POST /api/memory/ask`
+- `GET /api/agent-runs/[runId]`
+- `GET/POST /api/files`
+- `DELETE /api/files/[fileId]`
+- `GET/POST /api/reports`
+- `POST /api/artifacts`
+- `PATCH /api/settings`
+- `POST /api/integrations/credentials`
 - `GET /api/integrations/status`
 
-If `OPENAI_API_KEY` is missing or the provider fails, routes return the existing backend fallback output with `mode: "mock"`. If the provider succeeds, routes return `mode: "live"`.
+AI routes resolve a workspace OpenAI key from the encrypted credential vault first, then fall back to the platform `OPENAI_API_KEY`. If no key exists or the provider fails, routes return fallback output with `mode: "mock"`. If the provider succeeds, routes return `mode: "live"`.
 
-Future user-provided API keys should not be saved in localStorage. They should be submitted through the app to a backend endpoint, encrypted, stored in the database/token vault, and used only by server routes.
+Never put AI keys in `NEXT_PUBLIC_*` variables. Browser-visible environment variables leak to users.
 
-## What Is Mocked
+## Current Limits
 
-- Agent outputs and run history.
-- Founder Black Box answers and source chips when no live AI key is configured.
-- File uploads and generated file records.
-- Reports and report downloads.
-- QA browser steps and screenshots.
-- Migration file parsing and final imports. AI mapping can be live, but real file workers are still backend-roadmap work.
-- Integration connection/configuration flows.
+- Founder Black Box answers and agent outputs use deterministic fallback when no live AI key is configured.
+- QA progress is workflow/UI driven; real Playwright execution remains a worker phase.
+- Migration parsing uses sample/structured data paths; full file parsing workers remain a worker phase.
+- OAuth connection flows for GitHub, Gmail, Calendar, Drive, Notion, and Slack are status-ready but not fully connected.
 - Billing and workspace security surfaces.
 
 ## Backend Roadmap
 
-- Auth, organizations, roles, sessions, and billing.
-- Hosted database for projects, memory, reports, files, and agent runs.
+- Billing, team invitations, and richer workspace roles.
 - Vector/search index for Founder Black Box retrieval.
-- Secure file storage and file parsing workers.
-- Real AI PM generation with approval and audit logs.
+- File parsing workers and presigned upload/download URLs.
 - Real Playwright QA jobs with screenshots, retries, and observability.
 - Migration job queue, validation rules engine, and export history.
 - OAuth integrations for GitHub, Gmail, Calendar, Drive, Notion, and Slack.
@@ -152,7 +171,8 @@ src/app                 App Router routes
 src/components/app      Dashboard shell, sidebar, topbar
 src/components/sections Public/auth sections
 src/components/ui       Reusable UI primitives
-src/lib                 Mock data, store, agents, exports, validation
+src/lib                 Data hooks, server services, agents, exports, validation
+prisma                  Production database schema
 src/types               Product data models
 ```
 
