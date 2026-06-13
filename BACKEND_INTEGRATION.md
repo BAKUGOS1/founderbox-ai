@@ -28,6 +28,18 @@ S3_SECRET_ACCESS_KEY=
 
 Do not create `NEXT_PUBLIC_OPENAI_API_KEY`. Anything prefixed with `NEXT_PUBLIC_` can be exposed to users.
 
+## Supabase Database
+
+Supabase project connected for this app:
+
+- Project name: `Orbis`
+- Project ref: `fqxnjgakbxsznwficfaa`
+- Region: `ap-south-1`
+- Database host: `db.fqxnjgakbxsznwficfaa.supabase.co`
+
+The FounderBox Prisma schema has been applied as Supabase migration `init_founderbox_backend`.
+For local or Vercel runtime, set `DATABASE_URL` to the Supabase Postgres connection string from Supabase dashboard. The app uses Prisma server-side, so the Supabase anon key is not required for the current backend routes.
+
 ## Current Backend Routes
 
 - `GET /api/state`
